@@ -1,0 +1,14 @@
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+*.bak
+
+.DS_Store
+Thumbs.db
+
+build/
+dist/

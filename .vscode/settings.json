@@ -1,0 +1,12 @@
+{
+    "qt.qml.lsp.customExePath": "/usr/lib/qt6/bin/qmlls",
+    "qt.qml.lsp.additionalImportPaths": [
+        "${workspaceFolder}/qml",
+        "${workspaceFolder}/qml/services",
+        "${workspaceFolder}/qml/wallpaper",
+        "${workspaceFolder}/qml/components"
+    ],
+    "files.associations": {
+        "*.qml": "qml"
+    }
+}
