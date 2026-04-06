@@ -35,6 +35,7 @@ Scope {
   WallhavenService {
     id: whService
     wallpaperDir: Config.wallpaperDir
+    apiKey: Config.wallhavenApiKey
   }
 
   SteamWorkshopService {
