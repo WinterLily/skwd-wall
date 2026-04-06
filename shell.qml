@@ -100,5 +100,10 @@ ShellRoot {
             if (wallpaperSelectorLoader.item && wallpaperSelectorLoader.item.selectorService)
                 wallpaperSelectorLoader.item.selectorService.refreshFromDb()
         }
+
+        function steamUpdate() {
+            if (wallpaperSelectorLoader.item && wallpaperSelectorLoader.item.swService)
+                wallpaperSelectorLoader.item.swService.refreshDownloadStatus()
+        }
     }
 }

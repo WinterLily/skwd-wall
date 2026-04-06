@@ -1,6 +1,8 @@
+import Quickshell.Io
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../services"
 
 Item {
   id: browser
@@ -11,7 +13,10 @@ Item {
 
   signal escapePressed()
 
-  clip: true
+  property var _previewWp: null
+  property bool _previewOpen: _previewWp !== null
+
+  clip: !_previewOpen
 
   visible: browserVisible
   opacity: browserVisible ? 1 : 0
@@ -19,128 +24,117 @@ Item {
 
   height: browserVisible ? implicitHeight : 0
   Behavior on height { NumberAnimation { duration: Style.animEnter; easing.type: Easing.OutCubic } }
-  implicitHeight: contentCol.implicitHeight + 16
 
-  MouseArea {
-    anchors.fill: parent
-    propagateComposedEvents: true
-    onWheel: function(wheel) {
-      if (!browser.swService || browser.swService.loading) { wheel.accepted = false; return }
-      if (wheel.angleDelta.y < 0) { browser.swService.nextPage(); wheel.accepted = true }
-      else if (wheel.angleDelta.y > 0) { browser.swService.prevPage(); wheel.accepted = true }
-      else { wheel.accepted = false }
-    }
-    onPressed: function(mouse) { mouse.accepted = false }
-    onReleased: function(mouse) { mouse.accepted = false }
-  }
+  readonly property real _gridCellW: Config.wallhavenThumbWidth + 8
+  readonly property real _gridCellH: Config.wallhavenThumbHeight + 8
+  readonly property real _gridTotalW: _gridCellW * Config.wallhavenColumns
+  implicitHeight: contentCol.implicitHeight + 22 + _gridCellH * Config.wallhavenRows
 
-  Rectangle {
-    anchors.fill: parent
-    radius: 12
-    color: browser.colors ? Qt.rgba(browser.colors.surfaceContainer.r, browser.colors.surfaceContainer.g, browser.colors.surfaceContainer.b, 0.92)
-                          : Qt.rgba(0.08, 0.1, 0.14, 0.92)
-    border.width: 1
-    border.color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.15)
-                                 : Qt.rgba(1, 1, 1, 0.1)
-  }
+  MouseArea { anchors.fill: parent }
+
   Column {
     id: contentCol
-    anchors.left: parent.left; anchors.right: parent.right
+    width: browser._gridTotalW
+    anchors.horizontalCenter: parent.horizontalCenter
     anchors.top: parent.top
-    anchors.margins: 12
-    spacing: 10
+    anchors.topMargin: 12
+    spacing: 8
 
     Row {
-      spacing: 8
-      width: parent.width
+      spacing: -6
+      anchors.horizontalCenter: parent.horizontalCenter
 
-      Rectangle {
-        width: 28; height: 28; radius: 6
-        property bool isHovered: closeMouse.containsMouse
-        color: isHovered ? (browser.colors ? Qt.rgba(browser.colors.surfaceVariant.r, browser.colors.surfaceVariant.g, browser.colors.surfaceVariant.b, 0.6) : Qt.rgba(1,1,1,0.2))
-                         : "transparent"
-        Behavior on color { ColorAnimation { duration: Style.animVeryFast } }
-        Text {
-          anchors.centerIn: parent
-          text: "󰅁"; font.family: Style.fontFamilyNerdIcons; font.pixelSize: 16
-          color: browser.colors ? browser.colors.tertiary : "#8bceff"
-        }
-        MouseArea {
-          id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-          onClicked: browser.escapePressed()
-        }
-        StyledToolTip { visible: closeMouse.containsMouse; text: "Back to wallpapers"; delay: 400 }
+      FilterButton {
+        colors: browser.colors; icon: "󰅁"; skew: 8
+        tooltip: "Back to wallpapers"
+        onClicked: browser.escapePressed()
       }
 
-      Text {
-        text: "󰓓"
-        font.family: Style.fontFamilyNerdIcons; font.pixelSize: 18
-        color: browser.colors ? browser.colors.tertiary : "#8bceff"
-        anchors.verticalCenter: parent.verticalCenter
-      }
+      Item { width: 14; height: 1 }
 
       Rectangle {
-        width: 220; height: 30; radius: 6
+        width: 200; height: 24; radius: 0
         color: browser.colors ? Qt.rgba(browser.colors.surface.r, browser.colors.surface.g, browser.colors.surface.b, 0.8)
                                : Qt.rgba(0.15, 0.17, 0.22, 0.8)
-        border.width: swSearchInput.activeFocus ? 2 : 1
-        border.color: swSearchInput.activeFocus
+        border.width: searchInput.activeFocus ? 2 : 1
+        border.color: searchInput.activeFocus
             ? (browser.colors ? browser.colors.primary : Style.fallbackAccent)
             : (browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.2) : Qt.rgba(1, 1, 1, 0.12))
+        transform: Matrix4x4 { matrix: Qt.matrix4x4(1, -0.15, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1) }
 
         TextInput {
-          id: swSearchInput
+          id: searchInput
           anchors.fill: parent; anchors.margins: 6
-          font.family: Style.fontFamily; font.pixelSize: 12
+          font.family: Style.fontFamily; font.pixelSize: 11
           color: browser.colors ? browser.colors.surfaceText : "#e0e0e0"
           clip: true
-          property string placeholderText: "Search Steam Workshop..."
           Keys.onReturnPressed: { browser.swService.query = text; browser.swService.search(1) }
           Keys.onEscapePressed: browser.escapePressed()
         }
         Text {
           anchors.fill: parent; anchors.margins: 6
-          font.family: Style.fontFamily; font.pixelSize: 12
+          font.family: Style.fontFamily; font.pixelSize: 11
           color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.35)
                                 : Qt.rgba(1, 1, 1, 0.3)
-          text: swSearchInput.placeholderText
-          visible: !swSearchInput.text && !swSearchInput.activeFocus
+          text: "SEARCH STEAM WORKSHOP..."
+          font.letterSpacing: 0.5; font.weight: Font.Medium
+          visible: !searchInput.text && !searchInput.activeFocus
         }
       }
 
-      Rectangle { width: 1; height: 22; color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.2) : Qt.rgba(1,1,1,0.1) }
+      Item { width: 14; height: 1 }
 
-      Row {
-        spacing: 3
-        Repeater {
-          model: [
-            { key: "trend",                    label: "Trending" },
-            { key: "totaluniquesubscribers",   label: "Popular" },
-            { key: "favorited",                label: "Favorites" }
-          ]
-          Rectangle {
-            width: sortLabel.implicitWidth + 14; height: 26; radius: 4
-            property bool isOn: browser.swService ? browser.swService.sorting === modelData.key : false
-            property bool isHovered: sortMouse.containsMouse
-            color: isOn ? (browser.colors ? browser.colors.primary : Style.fallbackAccent)
-                        : (isHovered ? (browser.colors ? Qt.rgba(browser.colors.surfaceVariant.r, browser.colors.surfaceVariant.g, browser.colors.surfaceVariant.b, 0.5) : Qt.rgba(1,1,1,0.15))
-                                     : "transparent")
-            border.width: isOn ? 0 : 1
-            border.color: isHovered ? (browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.4) : Qt.rgba(1,1,1,0.2)) : "transparent"
-            Behavior on color { ColorAnimation { duration: Style.animVeryFast } }
-            Text {
-              id: sortLabel; anchors.centerIn: parent
-              text: modelData.label; font.family: Style.fontFamily; font.pixelSize: 11
-              color: parent.isOn ? (browser.colors ? browser.colors.primaryText : "#000")
-                                 : (browser.colors ? browser.colors.tertiary : "#8bceff")
-            }
-            MouseArea {
-              id: sortMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-              onClicked: { browser.swService.sorting = modelData.key; browser.swService.search(1) }
-            }
-          }
+      Repeater {
+        model: [
+          { key: "trend",      label: "Trending" },
+          { key: "new",        label: "New" },
+          { key: "toprated",   label: "Top Rated" },
+          { key: "popular",    label: "Popular" },
+          { key: "favorited",  label: "Favorites" }
+        ]
+        FilterButton {
+          colors: browser.colors; label: modelData.label; skew: 8
+          isActive: browser.swService ? browser.swService.sorting === modelData.key : false
+          onClicked: { browser.swService.sorting = modelData.key; browser.swService.search(1) }
         }
       }
+
+      Item { width: 8; height: 1 }
+
+      Repeater {
+        model: browser.swService && browser.swService.sorting === "trend" ? [
+          { key: 1,  label: "Day" },
+          { key: 7,  label: "Week" },
+          { key: 30, label: "Month" },
+          { key: 90, label: "3M" },
+          { key: 180, label: "6M" },
+          { key: 365, label: "Year" }
+        ] : []
+        FilterButton {
+          colors: browser.colors; label: modelData.label; skew: 8
+          isActive: browser.swService ? browser.swService.trendDays === modelData.key : false
+          onClicked: { browser.swService.trendDays = modelData.key; browser.swService.search(1) }
+        }
+      }
+
+      Item { width: 8; height: 1 }
+
+      Repeater {
+        model: [
+          { key: "Video",       label: "Video" },
+          { key: "Web",         label: "Web" },
+          { key: "Scene",       label: "Scene" },
+          { key: "Application", label: "App" },
+          { key: "",            label: "All Types" }
+        ]
+        FilterButton {
+          colors: browser.colors; label: modelData.label; skew: 8
+          isActive: browser.swService ? browser.swService.requiredType === modelData.key : false
+          onClicked: { browser.swService.requiredType = modelData.key; browser.swService.search(1) }
+        }
+      }
+
+      Item { width: 8; height: 1 }
 
       Text {
         visible: browser.swService ? browser.swService.loading : false
@@ -152,9 +146,41 @@ Item {
       }
     }
 
-    Flow {
-      width: parent.width
-      spacing: 4
+    Row {
+      spacing: -6
+      anchors.horizontalCenter: parent.horizontalCenter
+
+      Text {
+        text: "CONTENT"
+        font.family: Style.fontFamily; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1.2
+        color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.35) : Qt.rgba(1,1,1,0.25)
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Item { width: 10; height: 1 }
+
+      FilterButton {
+        colors: browser.colors; label: "SFW"; skew: 8
+        isActive: browser.swService ? !browser.swService.nsfwEnabled : true
+        onClicked: { browser.swService.nsfwEnabled = false; browser.swService.search(1) }
+      }
+      FilterButton {
+        colors: browser.colors; label: "NSFW"; skew: 8
+        isActive: browser.swService ? browser.swService.nsfwEnabled : false
+        activeColor: "#e53935"; hasActiveColor: true
+        onClicked: { browser.swService.nsfwEnabled = true; browser.swService.search(1) }
+      }
+
+      Item { width: 14; height: 1 }
+
+      Text {
+        text: "CATEGORY"
+        font.family: Style.fontFamily; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1.2
+        color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.35) : Qt.rgba(1,1,1,0.25)
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Item { width: 10; height: 1 }
 
       Repeater {
         model: [
@@ -170,43 +196,56 @@ Item {
           { key: "Guys",       label: "Guys" },
           { key: "Landscape",  label: "Landscape" },
           { key: "Medieval",   label: "Medieval" },
-          { key: "Memes",      label: "Memes" },
-          { key: "MMD",        label: "MMD" },
           { key: "Music",      label: "Music" },
           { key: "Nature",     label: "Nature" },
           { key: "Pixel art",  label: "Pixel Art" },
           { key: "Relaxing",   label: "Relaxing" },
           { key: "Retro",      label: "Retro" },
           { key: "Sci-Fi",     label: "Sci-Fi" },
-          { key: "Sports",     label: "Sports" },
           { key: "Technology", label: "Technology" },
-          { key: "Television", label: "Television" },
-          { key: "Unidirectional", label: "Unidirectional" },
           { key: "Vehicle",    label: "Vehicle" }
         ]
-        Rectangle {
-          width: catLabel.implicitWidth + 14; height: 24; radius: 4
-          property bool isOn: browser.swService ? browser.swService.requiredTag === modelData.key : false
-          property bool isHovered: catMouse.containsMouse
-          color: isOn ? (browser.colors ? browser.colors.primary : Style.fallbackAccent)
-                      : (isHovered ? (browser.colors ? Qt.rgba(browser.colors.surfaceVariant.r, browser.colors.surfaceVariant.g, browser.colors.surfaceVariant.b, 0.5) : Qt.rgba(1,1,1,0.15))
-                                   : "transparent")
-          border.width: isOn ? 0 : 1
-          border.color: isHovered ? (browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.4) : Qt.rgba(1,1,1,0.2)) : "transparent"
-          Behavior on color { ColorAnimation { duration: Style.animVeryFast } }
-          Text {
-            id: catLabel; anchors.centerIn: parent
-            text: modelData.label; font.family: Style.fontFamily; font.pixelSize: 10
-            color: parent.isOn ? (browser.colors ? browser.colors.primaryText : "#000")
-                               : (browser.colors ? browser.colors.tertiary : "#8bceff")
-          }
-          MouseArea {
-            id: catMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: { browser.swService.requiredTag = modelData.key; browser.swService.search(1) }
-          }
+        FilterButton {
+          colors: browser.colors; label: modelData.label; skew: 8
+          isActive: browser.swService ? browser.swService.requiredTag === modelData.key : false
+          onClicked: { browser.swService.requiredTag = modelData.key; browser.swService.search(1) }
+        }
+      }
+
+    }
+
+    Row {
+      spacing: -6
+      anchors.horizontalCenter: parent.horizontalCenter
+
+      Text {
+        text: "RESOLUTION"
+        font.family: Style.fontFamily; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1.2
+        color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.35) : Qt.rgba(1,1,1,0.25)
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Item { width: 10; height: 1 }
+
+      Repeater {
+        model: [
+          { key: "",                label: "Any" },
+          { key: "1920 x 1080",    label: "1080p" },
+          { key: "2560 x 1440",    label: "2K" },
+          { key: "3840 x 2160",    label: "4K" },
+          { key: "2560 x 1080",    label: "UW" },
+          { key: "3440 x 1440",    label: "UWQHD" },
+          { key: "3840 x 1080",    label: "Dual" },
+          { key: "5120 x 1440",    label: "Dual QHD" }
+        ]
+        FilterButton {
+          colors: browser.colors; label: modelData.label; skew: 8
+          isActive: browser.swService ? browser.swService.requiredResolution === modelData.key : false
+          onClicked: { browser.swService.requiredResolution = modelData.key; browser.swService.search(1) }
         }
       }
     }
+
     Text {
       visible: browser.swService && browser.swService.errorText !== ""
       text: browser.swService ? browser.swService.errorText : ""
@@ -216,276 +255,679 @@ Item {
       wrapMode: Text.Wrap
     }
 
-    Grid {
-      id: resultsGrid
-      columns: 6
-      spacing: 8
+    Rectangle {
+      id: downloadStatusBar
       width: parent.width
+      height: _dlBarVisible ? 28 : 0
+      radius: 4
+      clip: true
+      property bool _dlBarVisible: browser.swService && (browser.swService.downloadQueueLength > 0 || browser.swService.authPaused)
+      visible: _dlBarVisible
+      Behavior on height { NumberAnimation { duration: Style.animFast; easing.type: Easing.OutCubic } }
 
-      Repeater {
-        model: browser.swService ? browser.swService.results.length : 0
-        delegate: Item {
-          id: thumbDelegate
-          width: (resultsGrid.width - (resultsGrid.columns - 1) * resultsGrid.spacing) / resultsGrid.columns
-          height: width * 0.6
+      color: browser.swService && browser.swService.authPaused
+        ? Qt.rgba(0.9, 0.2, 0.2, 0.15)
+        : (browser.colors ? Qt.rgba(browser.colors.surface.r, browser.colors.surface.g, browser.colors.surface.b, 0.7)
+                          : Qt.rgba(0.12, 0.14, 0.18, 0.7))
+      border.width: 1
+      border.color: browser.swService && browser.swService.authPaused
+        ? Qt.rgba(0.9, 0.2, 0.2, 0.4)
+        : (browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.25)
+                          : Qt.rgba(1, 1, 1, 0.08))
 
-          property var wp: browser.swService.results[index]
-          property string dlStatus: {
-            if (!browser.swService || !wp) return ""
-            var s = browser.swService.downloadStatus
-            return s[wp.id] || ""
+      Rectangle {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        visible: !browser.swService || !browser.swService.authPaused
+        width: parent.width * (browser.swService && browser.swService.activeDownloadId
+          ? (browser.swService.downloadProgress[browser.swService.activeDownloadId] || 0)
+          : 0)
+        radius: 4
+        color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.15)
+                              : Qt.rgba(1, 0.53, 0, 0.1)
+        Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+      }
+
+      Row {
+        anchors.centerIn: parent
+        spacing: 8
+
+        Text {
+          text: browser.swService && browser.swService.authPaused ? "\u{f0341}" : "\u{f01da}"
+          font.family: Style.fontFamilyNerdIcons; font.pixelSize: 13
+          color: browser.swService && browser.swService.authPaused
+            ? "#ff6b6b"
+            : (browser.colors ? browser.colors.primary : Style.fallbackAccent)
+        }
+
+        Text {
+          text: {
+            if (!browser.swService) return ""
+            if (browser.swService.authPaused) {
+              var n = browser.swService.authFailedCount
+              return "Steam login expired — " + n + " download" + (n !== 1 ? "s" : "") + " paused. Run: steamcmd +login " + (Config.steamUsername || "your_username") + " +quit"
+            }
+            var msg = browser.swService.activeDownloadMessage || "Preparing..."
+            var q = browser.swService.downloadQueueLength
+            return msg + (q > 1 ? "  \u{f0142}  " + (q - 1) + " queued" : "")
           }
-          property real dlProgress: {
-            if (!browser.swService || !wp) return 0
-            var p = browser.swService.downloadProgress
-            return p[wp.id] || 0
+          font.family: Style.fontFamily; font.pixelSize: 11; font.weight: Font.Medium
+          color: browser.swService && browser.swService.authPaused
+            ? "#ff6b6b"
+            : (browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.8)
+                              : Qt.rgba(1, 1, 1, 0.7))
+        }
+
+        Rectangle {
+          visible: browser.swService && browser.swService.authPaused
+          width: retryText.implicitWidth + 16; height: 20; radius: 3
+          color: retryMa.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.08)
+          border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.15)
+          Text {
+            id: retryText; anchors.centerIn: parent
+            text: "Retry"; font.family: Style.fontFamily; font.pixelSize: 10; font.weight: Font.Medium
+            color: browser.colors ? browser.colors.surfaceText : "#e0e0e0"
           }
-          property bool isLocal: {
-            if (!browser.swService || !wp) return false
-            var ids = browser.swService.localWorkshopIds
-            return !!ids[wp.id]
+          MouseArea {
+            id: retryMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: browser.swService.retryDownloads()
           }
+        }
+      }
+    }
+  }
+
+  ListModel { id: resultsModel }
+
+  Connections {
+    target: browser.swService
+    function onResultsUpdated() {
+      var total = browser.swService ? browser.swService.results.length : 0
+      if (total < resultsModel.count) {
+        resultsModel.clear()
+      }
+      var toAdd = total - resultsModel.count
+      if (toAdd > 0) {
+        var batch = []
+        for (var i = 0; i < toAdd; i++)
+          batch.push({ idx: resultsModel.count + i })
+        resultsModel.append(batch)
+      }
+    }
+  }
+
+  GridView {
+    id: resultsGrid
+    anchors.top: contentCol.bottom; anchors.topMargin: 10
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.bottom: parent.bottom
+    anchors.bottomMargin: 12
+    width: browser._gridTotalW
+    clip: true
+    cellWidth: browser._gridCellW
+    cellHeight: browser._gridCellH
+
+    model: resultsModel
+    cacheBuffer: 600
+    boundsBehavior: Flickable.StopAtBounds
+    interactive: false
+
+    property real _scrollTarget: 0
+    onContentYChanged: {
+      if (!_gridScrollAnim.running) _scrollTarget = contentY
+      if (contentY > _prevContentY) _lastScrollDir = 1
+      else if (contentY < _prevContentY) _lastScrollDir = -1
+      _prevContentY = contentY
+    }
+
+    NumberAnimation {
+      id: _gridScrollAnim
+      target: resultsGrid
+      property: "contentY"
+      duration: 400
+      easing.type: Easing.OutCubic
+    }
+
+    function _snapScroll(delta) {
+      if (!_gridScrollAnim.running) _scrollTarget = contentY
+      var step = cellHeight
+      _scrollTarget += (delta > 0 ? -step : step)
+      var maxY = contentHeight - height
+      _scrollTarget = Math.max(0, Math.min(_scrollTarget, maxY))
+      _gridScrollAnim.stop()
+      _gridScrollAnim.from = contentY
+      _gridScrollAnim.to = _scrollTarget
+      _gridScrollAnim.start()
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      propagateComposedEvents: true
+      onWheel: function(wheel) {
+        resultsGrid._snapScroll(wheel.angleDelta.y)
+        resultsGrid.forceActiveFocus()
+      }
+      onPressed: function(mouse) { mouse.accepted = false }
+      onReleased: function(mouse) { mouse.accepted = false }
+      onClicked: function(mouse) { mouse.accepted = false }
+    }
+
+    property int _lastScrollDir: 1
+    property real _prevContentY: 0
+    onContentHeightChanged: _prevContentY = contentY
+
+    onCountChanged: {
+      if (atYEnd && browser.swService && browser.swService.hasMore && !browser.swService.loading)
+        browser.swService.loadMore()
+    }
+
+    onAtYEndChanged: {
+      if (atYEnd && browser.swService && browser.swService.hasMore && !browser.swService.loading) {
+        browser.swService.loadMore()
+      }
+    }
+
+    ScrollBar.vertical: ScrollBar {
+      policy: ScrollBar.AsNeeded
+      width: 4
+      contentItem: Rectangle {
+        radius: 2
+        color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.4)
+                              : Qt.rgba(1, 1, 1, 0.3)
+      }
+    }
+
+      delegate: Item {
+        id: thumbDelegate
+        width: resultsGrid.cellWidth
+        height: resultsGrid.cellHeight
+
+        required property int index
+        property var wp: browser.swService ? browser.swService.results[index] : null
+        property string dlStatus: {
+          if (!browser.swService || !wp) return ""
+          var s = browser.swService.downloadStatus
+          return s[wp.id] || ""
+        }
+        property real dlProgress: {
+          if (!browser.swService || !wp) return 0
+          var p = browser.swService.downloadProgress
+          return p[wp.id] || 0
+        }
+        property bool isLocal: {
+          if (!browser.swService || !wp) return false
+          var ids = browser.swService.localWorkshopIds
+          return !!ids[wp.id]
+        }
+
+        property bool _needsEntryAnim: false
+        opacity: 0
+        transform: Translate { id: thumbTranslate; y: 0 }
+
+        Component.onCompleted: {
+          if (resultsGrid._lastScrollDir >= 0) {
+            _needsEntryAnim = true
+            thumbTranslate.y = 30
+            var col = index % Config.wallhavenColumns
+            _entryDelay.interval = col * 35
+            _entryDelay.start()
+          } else {
+            opacity = 1
+          }
+        }
+
+        Timer {
+          id: _entryDelay
+          repeat: false
+          onTriggered: {
+            _opacityAnim.start()
+            _slideAnim.start()
+          }
+        }
+
+        NumberAnimation {
+          id: _opacityAnim
+          target: thumbDelegate; property: "opacity"
+          from: 0; to: 1; duration: Style.animEnter
+          easing.type: Easing.OutCubic
+        }
+
+        NumberAnimation {
+          id: _slideAnim
+          target: thumbTranslate; property: "y"
+          from: 30; to: 0; duration: Style.animExpand
+          easing.type: Easing.OutBack
+        }
+
+        Rectangle {
+          anchors.fill: parent; anchors.margins: 4; radius: 6
+          color: "transparent"
+          border.width: resultsGrid.currentIndex === thumbDelegate.index ? 2 : 0
+          border.color: browser.colors ? browser.colors.primary : "#ff8800"
+          Behavior on border.width { NumberAnimation { duration: Style.animFast; easing.type: Easing.OutQuad } }
 
           Rectangle {
-            anchors.fill: parent; radius: 6
+            anchors.fill: parent; anchors.margins: parent.border.width; radius: 5
             color: browser.colors ? Qt.rgba(browser.colors.surface.r, browser.colors.surface.g, browser.colors.surface.b, 0.6)
                                   : Qt.rgba(0.12, 0.14, 0.18, 0.6)
             clip: true
 
-            Image {
-              id: thumbImg
-              anchors.fill: parent
-              source: thumbDelegate.wp ? thumbDelegate.wp.previewUrl : ""
-              fillMode: Image.PreserveAspectCrop
-              asynchronous: true
-              smooth: true
-              cache: false
-              sourceSize.width: Math.ceil(thumbDelegate.width)
-              sourceSize.height: Math.ceil(thumbDelegate.height)
+          Image {
+            id: thumbImg
+            anchors.fill: parent
+            source: thumbDelegate.wp ? thumbDelegate.wp.previewUrl : ""
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            smooth: true
+            cache: false
+            sourceSize.width: Config.wallhavenThumbWidth
+            sourceSize.height: Config.wallhavenThumbHeight
+          }
+
+          Rectangle {
+            id: skeleton
+            anchors.fill: parent; radius: 6
+            visible: thumbImg.status !== Image.Ready
+            color: browser.colors ? Qt.rgba(browser.colors.surfaceVariant.r, browser.colors.surfaceVariant.g, browser.colors.surfaceVariant.b, 0.5)
+                                  : Qt.rgba(0.18, 0.20, 0.25, 0.8)
+
+            Rectangle {
+              id: shimmer
+              width: parent.width * 0.5
+              height: parent.height
+              radius: 6
+              opacity: 0.35
+              gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.15) : Qt.rgba(1, 1, 1, 0.08) }
+                GradientStop { position: 1.0; color: "transparent" }
+              }
+              NumberAnimation on x {
+                from: -shimmer.width
+                to: skeleton.width
+                duration: 1200
+                loops: Animation.Infinite
+                running: skeleton.visible
+              }
             }
 
             Text {
               anchors.centerIn: parent
-              visible: thumbImg.status === Image.Loading
-              text: "󰔟"
-              font.family: Style.fontFamilyNerdIcons; font.pixelSize: 20
-              color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.3) : Qt.rgba(1,1,1,0.2)
+              text: "\u{f0553}"
+              font.family: Style.fontFamilyNerdIcons; font.pixelSize: 22
+              color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.15) : Qt.rgba(1,1,1,0.1)
             }
+          }
 
-            Rectangle {
-              id: hoverOverlay
-              anchors.fill: parent; radius: 6
-              color: Qt.rgba(0, 0, 0, 0.6)
-              opacity: thumbMouse.containsMouse ? 1 : 0
-              Behavior on opacity { NumberAnimation { duration: Style.animFast } }
-
-              Column {
-                anchors.centerIn: parent
-                spacing: 4
-                width: parent.width - 12
-
-                Text {
-                  width: parent.width
-                  horizontalAlignment: Text.AlignHCenter
-                  text: thumbDelegate.wp ? thumbDelegate.wp.title : ""
-                  font.family: Style.fontFamily; font.pixelSize: 10; font.weight: Font.Medium
-                  color: "#e0e0e0"
-                  elide: Text.ElideRight
-                  maximumLineCount: 2
-                  wrapMode: Text.Wrap
-                }
-
-                Rectangle {
-                  width: 90; height: 28; radius: 6
-                  anchors.horizontalCenter: parent.horizontalCenter
-                  visible: thumbDelegate.dlStatus !== "downloading"
-
-                  color: (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal)
-                      ? (browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.3) : Qt.rgba(0.3, 0.8, 0.3, 0.3))
-                      : (dlBtnMouse.containsMouse
-                          ? (browser.colors ? browser.colors.primary : Style.fallbackAccent)
-                          : (browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.6) : Qt.rgba(0.3, 0.76, 0.97, 0.6)))
-                  Behavior on color { ColorAnimation { duration: Style.animVeryFast } }
-
-                  Row {
-                    anchors.centerIn: parent; spacing: 4
-                    Text {
-                      text: (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal) ? "󰄬" : (thumbDelegate.dlStatus === "error" ? "󰅙" : "󰇚")
-                      font.family: Style.fontFamilyNerdIcons; font.pixelSize: 14
-                      color: (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal) ? "#8BC34A" : (thumbDelegate.dlStatus === "error" ? "#ff6b6b" : "#fff")
-                    }
-                    Text {
-                      text: (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal) ? "Installed" : (thumbDelegate.dlStatus === "error" ? "Error" : "Install")
-                      font.family: Style.fontFamily; font.pixelSize: 11; font.weight: Font.Medium
-                      color: "#fff"
-                    }
-                  }
-
-                  MouseArea {
-                    id: dlBtnMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                      if (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal || !thumbDelegate.wp) return
-                      browser.swService.downloadWorkshop(thumbDelegate.wp.id)
-                    }
-                  }
-                }
-
-                Text {
-                  visible: thumbDelegate.dlStatus === "downloading"
-                  anchors.horizontalCenter: parent.horizontalCenter
-                  text: "Downloading..."
-                  font.family: Style.fontFamily; font.pixelSize: 11
-                  color: browser.colors ? browser.colors.primary : Style.fallbackAccent
-                }
-
-                Row {
-                  anchors.horizontalCenter: parent.horizontalCenter
-                  spacing: 8
-                  Text {
-                    text: thumbDelegate.wp ? "󰓃 " + _formatCount(thumbDelegate.wp.subscriptions) : ""
-                    font.family: Style.fontFamilyNerdIcons; font.pixelSize: 9
-                    color: "#999"
-                  }
-                  Text {
-                    text: thumbDelegate.wp ? "󰋑 " + _formatCount(thumbDelegate.wp.favorited) : ""
-                    font.family: Style.fontFamilyNerdIcons; font.pixelSize: 9
-                    color: "#999"
-                  }
-                }
-              }
-            }
-
-            Row {
-              anchors.bottom: parent.bottom; anchors.left: parent.left
-              anchors.margins: 4; spacing: 3
-              Repeater {
-                model: thumbDelegate.wp ? Math.min(thumbDelegate.wp.tags.length, 2) : 0
-                Rectangle {
-                  width: tagBadge.implicitWidth + 6; height: 14; radius: 3
-                  color: Qt.rgba(0, 0, 0, 0.6)
-                  Text {
-                    id: tagBadge; anchors.centerIn: parent
-                    text: thumbDelegate.wp.tags[index]
-                    font.family: Style.fontFamily; font.pixelSize: 8
-                    color: "#ccc"
-                  }
-                }
-              }
-            }
-
-            Rectangle {
-              visible: thumbDelegate.isLocal || thumbDelegate.dlStatus === "done"
-              anchors.top: parent.top; anchors.left: parent.left
-              anchors.margins: 4
-              width: dlBadgeRow.implicitWidth + 8; height: 16; radius: 4
-              color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.85)
-                                    : Qt.rgba(0.3, 0.76, 0.97, 0.85)
-              Row {
-                id: dlBadgeRow; anchors.centerIn: parent; spacing: 3
-                Text {
-                  text: "󰄬"; font.family: Style.fontFamilyNerdIcons; font.pixelSize: 10
-                  color: browser.colors ? browser.colors.primaryText : "#000"
-                }
-                Text {
-                  text: "Installed"; font.family: Style.fontFamily; font.pixelSize: 8; font.weight: Font.Medium
-                  color: browser.colors ? browser.colors.primaryText : "#000"
-                }
-              }
-            }
-
-            Rectangle {
-              anchors.bottom: parent.bottom
-              anchors.left: parent.left
-              anchors.right: parent.right
-              height: 3
-              color: "transparent"
-              visible: thumbDelegate.dlStatus === "downloading"
-              Rectangle {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: parent.width * thumbDelegate.dlProgress
-                radius: 2
-                color: browser.colors ? browser.colors.primary : Style.fallbackAccent
-                Behavior on width { NumberAnimation { duration: Style.animNormal; easing.type: Easing.OutCubic } }
-              }
-            }
+          Rectangle {
+            id: hoverOverlay
+            anchors.fill: parent; radius: 6
+            color: Qt.rgba(0, 0, 0, 0.55)
+            opacity: thumbMouse.containsMouse ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Style.animFast } }
 
             MouseArea {
-              id: thumbMouse; anchors.fill: parent; hoverEnabled: true
-              propagateComposedEvents: true
-              onPressed: function(mouse) { mouse.accepted = false }
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: browser._previewWp = thumbDelegate.wp
+            }
+
+            Column {
+              anchors.centerIn: parent
+              spacing: 4
+
+              Text {
+                width: parent.parent.width - 12
+                horizontalAlignment: Text.AlignHCenter
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: thumbDelegate.wp ? thumbDelegate.wp.title : ""
+                font.family: Style.fontFamily; font.pixelSize: 10; font.weight: Font.Medium
+                color: "#e0e0e0"
+                elide: Text.ElideRight
+                maximumLineCount: 2
+                wrapMode: Text.Wrap
+              }
+
+              Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: -3
+                visible: thumbDelegate.dlStatus !== "downloading" && thumbDelegate.dlStatus !== "queued"
+
+                ActionButton {
+                  colors: browser.colors
+                  icon: (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal) ? "\u{f012c}" : (thumbDelegate.dlStatus === "error" ? "\u{f0159}" : "\u{f01da}")
+                  label: (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal) ? "Installed" : (thumbDelegate.dlStatus === "error" ? "Error" : "Install")
+                  tooltip: "Download via steamcmd"
+                  onClicked: {
+                    if (thumbDelegate.dlStatus === "done" || thumbDelegate.isLocal || !thumbDelegate.wp) return
+                    browser.swService.downloadWorkshop(thumbDelegate.wp.id, thumbDelegate.wp.fileSize)
+                  }
+                }
+              }
+
+              Text {
+                visible: thumbDelegate.dlStatus === "downloading" || thumbDelegate.dlStatus === "queued"
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: thumbDelegate.dlStatus === "queued" ? "Queued..." : (browser.swService.activeDownloadMessage || "Downloading...")
+                font.family: Style.fontFamily; font.pixelSize: 11
+                color: browser.colors ? browser.colors.primary : Style.fallbackAccent
+              }
+
+              Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 8
+                Text {
+                  text: thumbDelegate.wp ? "\u{f0899} " + _formatCount(thumbDelegate.wp.subscriptions) : ""
+                  font.family: Style.fontFamilyNerdIcons; font.pixelSize: 9
+                  color: "#999"
+                }
+                Text {
+                  text: thumbDelegate.wp ? "\u{f02d1} " + _formatCount(thumbDelegate.wp.favorited) : ""
+                  font.family: Style.fontFamilyNerdIcons; font.pixelSize: 9
+                  color: "#999"
+                }
+              }
+            }
+          }
+
+          Row {
+            anchors.bottom: parent.bottom; anchors.left: parent.left
+            anchors.margins: 4; spacing: 3
+            Repeater {
+              model: thumbDelegate.wp ? Math.min(thumbDelegate.wp.tags.length, 2) : 0
+              Rectangle {
+                width: tagBadge.implicitWidth + 6; height: 14; radius: 3
+                color: Qt.rgba(0, 0, 0, 0.6)
+                Text {
+                  id: tagBadge; anchors.centerIn: parent
+                  text: thumbDelegate.wp.tags[index]
+                  font.family: Style.fontFamily; font.pixelSize: 8
+                  color: "#ccc"
+                }
+              }
+            }
+          }
+
+          Rectangle {
+            visible: thumbDelegate.isLocal || thumbDelegate.dlStatus === "done"
+            anchors.top: parent.top; anchors.left: parent.left
+            anchors.margins: 4
+            width: dlBadgeRow.implicitWidth + 8; height: 16; radius: 4
+            color: browser.colors ? Qt.rgba(browser.colors.primary.r, browser.colors.primary.g, browser.colors.primary.b, 0.85)
+                                  : Qt.rgba(0.3, 0.76, 0.97, 0.85)
+            Row {
+              id: dlBadgeRow; anchors.centerIn: parent; spacing: 3
+              Text {
+                text: "\u{f012c}"; font.family: Style.fontFamilyNerdIcons; font.pixelSize: 10
+                color: browser.colors ? browser.colors.primaryText : "#000"
+              }
+              Text {
+                text: "Installed"; font.family: Style.fontFamily; font.pixelSize: 8; font.weight: Font.Medium
+                color: browser.colors ? browser.colors.primaryText : "#000"
+              }
+            }
+          }
+
+          Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 3
+            color: "transparent"
+            visible: thumbDelegate.dlStatus === "downloading" || thumbDelegate.dlStatus === "queued"
+            Rectangle {
+              anchors.left: parent.left
+              anchors.top: parent.top
+              anchors.bottom: parent.bottom
+              width: parent.width * thumbDelegate.dlProgress
+              radius: 2
+              color: browser.colors ? browser.colors.primary : Style.fallbackAccent
+              Behavior on width { NumberAnimation { duration: Style.animNormal; easing.type: Easing.OutCubic } }
+            }
+          }
+
+          MouseArea {
+            id: thumbMouse; anchors.fill: parent; hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            propagateComposedEvents: true
+            onContainsMouseChanged: {
+              if (containsMouse) resultsGrid.currentIndex = thumbDelegate.index
+            }
+            onPressed: function(mouse) { mouse.accepted = false }
+          }
+          }
+        }
+      }
+  }
+
+  Text {
+    visible: browser.swService && !browser.swService.loading && resultsModel.count === 0 && browser.swService.errorText === ""
+    text: "Search the Steam Workshop for Wallpaper Engine wallpapers"
+    font.family: Style.fontFamily; font.pixelSize: 12
+    color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.4)
+                          : Qt.rgba(1, 1, 1, 0.3)
+    anchors.centerIn: resultsGrid
+  }
+
+  onBrowserVisibleChanged: {
+    if (browserVisible && swService && resultsModel.count === 0) {
+      searchInput.forceActiveFocus()
+      swService.search(1)
+    } else if (browserVisible) {
+      searchInput.forceActiveFocus()
+      swService.scanLocalDirs()
+    } else {
+      if (swService) swService.clearCache()
+      resultsModel.clear()
+      _previewWp = null
+    }
+  }
+
+  Item {
+    anchors.fill: resultsGrid
+    visible: browser.swService && browser.swService.loading
+
+    enabled: false
+
+    Text {
+      anchors.centerIn: parent
+      text: "\u{f051f}"
+      font.family: Style.fontFamilyNerdIcons; font.pixelSize: 128
+      color: browser.colors ? browser.colors.primary : Style.fallbackAccent
+      opacity: browser.swService && browser.swService.loading ? 1 : 0
+      Behavior on opacity { NumberAnimation { duration: Style.animFast } }
+      RotationAnimation on rotation { from: 0; to: 360; duration: Style.animSpin; loops: Animation.Infinite; running: browser.swService && browser.swService.loading }
+    }
+  }
+
+  Rectangle {
+    id: previewOverlay
+
+    property point _rootPos: {
+      if (!browser._previewOpen) return Qt.point(0, 0)
+      var mapped = browser.mapToItem(null, 0, 0)
+      return mapped
+    }
+    property var _rootItem: {
+      var p = browser.parent
+      while (p && p.parent) p = p.parent
+      return p
+    }
+
+    x: -_rootPos.x
+    y: -_rootPos.y
+    width: _rootItem ? _rootItem.width : parent.width
+    height: _rootItem ? _rootItem.height : parent.height
+    z: 100
+    visible: opacity > 0
+    color: Qt.rgba(0, 0, 0, 0.92)
+    opacity: browser._previewOpen ? 1 : 0
+    Behavior on opacity { NumberAnimation { duration: Style.animEnter; easing.type: Easing.OutCubic } }
+
+    MouseArea {
+      anchors.fill: parent
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
+      onClicked: browser._previewWp = null
+    }
+
+    Keys.onEscapePressed: browser._previewWp = null
+    focus: browser._previewOpen
+
+    Image {
+      id: previewImg
+      anchors.fill: parent
+      anchors.margins: 60
+      anchors.bottomMargin: 80
+      source: browser._previewWp ? browser._previewWp.previewUrl : ""
+      fillMode: Image.PreserveAspectFit
+      asynchronous: true
+      smooth: true; cache: false
+      sourceSize.width: previewOverlay.width
+      sourceSize.height: previewOverlay.height
+
+      scale: browser._previewOpen ? 1.0 : 0.85
+      Behavior on scale { NumberAnimation { duration: Style.animExpand; easing.type: Easing.OutBack } }
+
+      opacity: browser._previewOpen ? 1.0 : 0.0
+      Behavior on opacity { NumberAnimation { duration: Style.animEnter; easing.type: Easing.OutCubic } }
+    }
+
+    Text {
+      anchors.centerIn: parent
+      visible: previewImg.status === Image.Loading
+      text: "\u{f051f}"
+      font.family: Style.fontFamilyNerdIcons; font.pixelSize: 40
+      color: browser.colors ? browser.colors.primary : Style.fallbackAccent
+      RotationAnimation on rotation { from: 0; to: 360; duration: Style.animSpin; loops: Animation.Infinite; running: previewImg.status === Image.Loading }
+    }
+
+    Rectangle {
+      anchors.top: parent.top; anchors.right: parent.right
+      anchors.margins: 20
+      width: 40; height: 40; radius: 20
+      color: previewCloseMouse.containsMouse ? Qt.rgba(1,1,1,0.25) : Qt.rgba(1,1,1,0.1)
+      Behavior on color { ColorAnimation { duration: Style.animVeryFast } }
+
+      Text {
+        anchors.centerIn: parent
+        text: "\u{f0156}"
+        font.family: Style.fontFamilyNerdIcons; font.pixelSize: 20
+        color: "#fff"
+      }
+      MouseArea {
+        id: previewCloseMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        onClicked: browser._previewWp = null
+      }
+      StyledToolTip { visible: previewCloseMouse.containsMouse; text: "Close preview"; delay: 400 }
+    }
+
+    Rectangle {
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left; anchors.right: parent.right
+      height: 56
+      color: Qt.rgba(0, 0, 0, 0.6)
+
+      Row {
+        anchors.centerIn: parent
+        spacing: 20
+
+        Text {
+          text: browser._previewWp ? browser._previewWp.title : ""
+          font.family: Style.fontFamily; font.pixelSize: 13; font.weight: Font.Medium
+          color: Qt.rgba(1, 1, 1, 0.85)
+          anchors.verticalCenter: parent.verticalCenter
+          elide: Text.ElideRight
+          maximumLineCount: 1
+          width: Math.min(implicitWidth, 300)
+        }
+
+        Row {
+          spacing: 5; anchors.verticalCenter: parent.verticalCenter
+          Text {
+            text: "\u{f0899}"
+            font.family: Style.fontFamilyNerdIcons; font.pixelSize: 14
+            color: browser.colors ? browser.colors.primary : Style.fallbackAccent
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Text {
+            text: browser._previewWp ? _formatCount(browser._previewWp.subscriptions) : ""
+            font.family: Style.fontFamily; font.pixelSize: 12
+            color: Qt.rgba(1, 1, 1, 0.65)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        Row {
+          spacing: 5; anchors.verticalCenter: parent.verticalCenter
+          Text {
+            text: "\u{f02d1}"
+            font.family: Style.fontFamilyNerdIcons; font.pixelSize: 14
+            color: browser.colors ? browser.colors.primary : Style.fallbackAccent
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Text {
+            text: browser._previewWp ? _formatCount(browser._previewWp.favorited) : ""
+            font.family: Style.fontFamily; font.pixelSize: 12
+            color: Qt.rgba(1, 1, 1, 0.65)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        Row {
+          spacing: 4; anchors.verticalCenter: parent.verticalCenter
+          visible: browser._previewWp && browser._previewWp.tags.length > 0
+          Repeater {
+            model: browser._previewWp ? Math.min(browser._previewWp.tags.length, 3) : 0
+            Rectangle {
+              width: pvTagText.implicitWidth + 12; height: 24; radius: 4
+              anchors.verticalCenter: parent.verticalCenter
+              color: Qt.rgba(1, 1, 1, 0.1)
+              Text {
+                id: pvTagText; anchors.centerIn: parent
+                text: browser._previewWp.tags[index]
+                font.family: Style.fontFamily; font.pixelSize: 11
+                color: Qt.rgba(1, 1, 1, 0.7)
+              }
+            }
+          }
+        }
+
+        Rectangle { width: 1; height: 24; color: Qt.rgba(1,1,1,0.15); anchors.verticalCenter: parent.verticalCenter }
+
+        Row {
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: -3
+
+          property string _dlSt: {
+            if (!browser.swService || !browser._previewWp) return ""
+            var s = browser.swService.downloadStatus
+            return s[browser._previewWp.id] || ""
+          }
+          property bool _isLocal: {
+            if (!browser.swService || !browser._previewWp) return false
+            return !!browser.swService.localWorkshopIds[browser._previewWp.id]
+          }
+
+          ActionButton {
+            colors: browser.colors
+            icon: (parent._dlSt === "done" || parent._isLocal) ? "\u{f012c}" : (parent._dlSt === "error" ? "\u{f0159}" : "\u{f01da}")
+            label: (parent._dlSt === "done" || parent._isLocal) ? "Installed"
+              : (parent._dlSt === "downloading" ? (browser.swService.activeDownloadMessage || "Downloading...")
+              : (parent._dlSt === "queued" ? "Queued..."
+              : (parent._dlSt === "error" ? "Error" : "Install")))
+            tooltip: "Download via steamcmd"
+            onClicked: {
+              if (parent._dlSt === "done" || parent._isLocal || parent._dlSt === "downloading" || parent._dlSt === "queued" || !browser._previewWp) return
+              browser.swService.downloadWorkshop(browser._previewWp.id, browser._previewWp.fileSize)
             }
           }
         }
       }
     }
-
-    Row {
-      spacing: 10
-      anchors.horizontalCenter: parent.horizontalCenter
-      visible: browser.swService && browser.swService.results.length > 0
-
-      Rectangle {
-        width: 60; height: 26; radius: 6
-        property bool isHovered: prevMouse.containsMouse
-        color: isHovered ? (browser.colors ? Qt.rgba(browser.colors.surfaceVariant.r, browser.colors.surfaceVariant.g, browser.colors.surfaceVariant.b, 0.5) : Qt.rgba(1,1,1,0.15))
-                         : "transparent"
-        opacity: browser.swService && browser.swService.currentPage > 1 ? 1 : 0.3
-        Text {
-          anchors.centerIn: parent
-          text: "󰅁 Prev"; font.family: Style.fontFamilyNerdIcons; font.pixelSize: 11
-          color: browser.colors ? browser.colors.tertiary : "#8bceff"
-        }
-        MouseArea {
-          id: prevMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-          onClicked: browser.swService.prevPage()
-        }
-      }
-
-      Text {
-        text: browser.swService ? (browser.swService.currentPage + " / " + browser.swService.lastPage) : "1 / 1"
-        font.family: Style.fontFamily; font.pixelSize: 11
-        color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.5) : Qt.rgba(1,1,1,0.4)
-        anchors.verticalCenter: parent.verticalCenter
-      }
-
-      Rectangle {
-        width: 60; height: 26; radius: 6
-        property bool isHovered: nextMouse.containsMouse
-        color: isHovered ? (browser.colors ? Qt.rgba(browser.colors.surfaceVariant.r, browser.colors.surfaceVariant.g, browser.colors.surfaceVariant.b, 0.5) : Qt.rgba(1,1,1,0.15))
-                         : "transparent"
-        opacity: browser.swService && browser.swService.currentPage < browser.swService.lastPage ? 1 : 0.3
-        Text {
-          anchors.centerIn: parent
-          text: "Next 󰅂"; font.family: Style.fontFamilyNerdIcons; font.pixelSize: 11
-          color: browser.colors ? browser.colors.tertiary : "#8bceff"
-        }
-        MouseArea {
-          id: nextMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-          onClicked: browser.swService.nextPage()
-        }
-      }
-    }
-
-    Text {
-      visible: browser.swService && !browser.swService.loading && browser.swService.results.length === 0 && browser.swService.errorText === ""
-      text: "Search the Steam Workshop for Wallpaper Engine wallpapers"
-      font.family: Style.fontFamily; font.pixelSize: 12
-      color: browser.colors ? Qt.rgba(browser.colors.surfaceText.r, browser.colors.surfaceText.g, browser.colors.surfaceText.b, 0.4)
-                            : Qt.rgba(1, 1, 1, 0.3)
-      anchors.horizontalCenter: parent.horizontalCenter
-    }
   }
-  onBrowserVisibleChanged: {
-    if (browserVisible && swService && swService.results.length === 0) {
-      swSearchInput.forceActiveFocus()
-      swService.search(1)
-    } else if (browserVisible) {
-      swSearchInput.forceActiveFocus()
-      swService.scanLocalDirs()
-    }
-  }
+
   function _formatCount(n) {
     if (!n || n <= 0) return "0"
     if (n >= 1000000) return (n / 1000000).toFixed(1) + "M"

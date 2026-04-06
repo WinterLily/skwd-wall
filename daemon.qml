@@ -80,6 +80,16 @@ ShellRoot {
         }
     }
 
+    Connections {
+        target: SteamDownloadService
+        function onStateChanged() {
+            root._notifySteamUpdate()
+        }
+        function onDownloadFinished(workshopId) {
+            WallpaperCacheService.processWeItem(workshopId, Config.weDir + "/" + workshopId)
+        }
+    }
+
     property var _uiNotifyTimer: Timer {
         interval: 500
         onTriggered: root._sendUiRefresh()
@@ -96,6 +106,24 @@ ShellRoot {
         if (!uiProcess.running || !_shellQmlPath) return
         _uiIpcProc.command = ["quickshell", "ipc", "-p", _shellQmlPath, "call", "wallpaper-ui", "refresh"]
         _uiIpcProc.running = true
+    }
+
+    property var _steamNotifyTimer: Timer {
+        interval: 300
+        onTriggered: root._sendSteamUpdate()
+    }
+
+    function _notifySteamUpdate() {
+        if (uiProcess.running)
+            _steamNotifyTimer.restart()
+    }
+
+    property var _steamIpcProc: Process {}
+
+    function _sendSteamUpdate() {
+        if (!uiProcess.running || !_shellQmlPath) return
+        _steamIpcProc.command = ["quickshell", "ipc", "-p", _shellQmlPath, "call", "wallpaper-ui", "steamUpdate"]
+        _steamIpcProc.running = true
     }
 
     property var _autoOptimizeTimer: Timer {
@@ -118,6 +146,18 @@ ShellRoot {
 
         function open()  { if (!uiProcess.running) root._launchUi() }
         function close() { uiProcess.running = false }
+    }
+
+    IpcHandler {
+        target: "steam-download"
+
+        function download() {
+            SteamDownloadService.pickUpRequest()
+        }
+
+        function retry() {
+            SteamDownloadService.retryAuthFailed()
+        }
     }
 
     function _launchUi() {

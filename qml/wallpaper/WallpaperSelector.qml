@@ -15,6 +15,7 @@ Scope {
   property bool showing: false
   property alias selectedColorFilter: service.selectedColorFilter
   property alias selectorService: service
+  property alias swService: swService
   property string mainMonitor: Config.mainMonitor
   signal wallpaperChanged()
   signal uiReady()
