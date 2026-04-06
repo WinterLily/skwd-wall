@@ -36,7 +36,8 @@ QtObject {
         if (data.wallpaperMute !== undefined) wallpaperMute = data.wallpaperMute
     }
 
-    signal wallpaperApplied(string type, string name)
+    signal wallpaperApplied(string type, string name, string path)
+    onWallpaperApplied: _runPostProcessing(type, name, path)
 
     function applyStatic(path) {
         console.log("WallpaperApplyService.applyStatic:", path, "wallpaperDir:", wallpaperDir)
@@ -53,7 +54,7 @@ QtObject {
             " --transition-type wipe --transition-angle 45 --transition-duration 0.5"]
         awwwProcess.running = true
         _extractAndTheme(path)
-        wallpaperApplied("static", _basename(path))
+        wallpaperApplied("static", _basename(path), path)
     }
 
     function applyVideo(path) {
@@ -66,7 +67,7 @@ QtObject {
             "nohup setsid mpvpaper -o " + (wallpaperMute ? "'loop --mute=yes'" : "'loop'") + " '*' " + JSON.stringify(path) + " </dev/null >/dev/null 2>&1 &"]
         mpvProcess.running = true
         _extractVideoThumb(path)
-        wallpaperApplied("video", _basename(path))
+        wallpaperApplied("video", _basename(path), path)
     }
 
     function applyWE(weId) {
@@ -75,7 +76,7 @@ QtObject {
         _pendingAction = function() {
             _launchWE(weId)
             _extractWEThumb(weId)
-            wallpaperApplied("we", weId)
+            wallpaperApplied("we", weId, weDir + "/" + weId)
         }
         _killAll()
     }
@@ -215,11 +216,12 @@ QtObject {
         var mons = Quickshell.screens.map(function(s) { return s.name })
         var screenArgs = ""
         for (var i = 0; i < mons.length; i++)
-            screenArgs += " --screen-root " + mons[i]
+            screenArgs += " --screen-root " + mons[i] + " --scaling fill"
         var audioFlag = service.wallpaperMute ? "--silent" : ""
         var assetsArg = " --assets-dir " + JSON.stringify(service.weAssetsDir)
         var cmd = "nohup setsid linux-wallpaperengine " + audioFlag +
             " --no-fullscreen-pause --noautomute" + screenArgs +
+            " --clamp border" +
             assetsArg + " " + JSON.stringify(weId) +
             " </dev/null >/dev/null 2>&1 &"
         console.log("WallpaperApplyService: launching WE scene:", cmd)
@@ -372,6 +374,17 @@ QtObject {
         xhr.open("POST", ollamaUrl + "/api/generate")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.send(JSON.stringify({model: ollamaModel, keep_alive: 0}))
+    }
+
+    function _runPostProcessing(type, name, path) {
+        var cmds = Config.postProcessing
+        if (!cmds || cmds.length === 0) return
+        for (var i = 0; i < cmds.length; i++) {
+            var cmd = cmds[i]
+            if (!cmd) continue
+            cmd = cmd.replace(/%type%/g, type).replace(/%name%/g, name).replace(/%path%/g, path)
+            _runReload(cmd)
+        }
     }
 
     function _basename(path) {

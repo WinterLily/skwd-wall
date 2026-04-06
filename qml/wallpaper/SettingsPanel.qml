@@ -50,6 +50,10 @@ Item {
       if (!Config.ollamaEnabled && settingsPanel.activeTab === "ollama")
         settingsPanel.activeTab = "features"
     }
+    function onMatugenEnabledChanged() {
+      if (!Config.matugenEnabled && settingsPanel.activeTab === "matugen")
+        settingsPanel.activeTab = "features"
+    }
   }
 
   Connections {
@@ -96,6 +100,10 @@ Item {
   function _readConfig() {
     _selectorConfigFile.reload()
     try { return JSON.parse(_selectorConfigFile.text()) } catch(e) { return {} }
+  }
+
+  function _cloneIntegrations() {
+    return Config.integrations.map(function(e) { return JSON.parse(JSON.stringify(e)) })
   }
 
   function _saveField(key, value) {
@@ -221,9 +229,11 @@ Item {
           { key: "wallhaven", label: "WALLHAVEN" },
           { key: "features",  label: "FEATURES" },
           { key: "performance", label: "PERFORMANCE" },
+          { key: "postprocessing", label: "POSTPROCESSING" },
           { key: "keybinds",  label: "KEYBINDS" }
         ]
         if (Config.ollamaEnabled) tabs.push({ key: "ollama", label: "OLLAMA" })
+        if (Config.matugenEnabled) tabs.push({ key: "matugen", label: "MATUGEN" })
         return tabs
       }
 
@@ -253,6 +263,8 @@ Item {
       if (settingsPanel.activeTab === "wallhaven") return wallhavenContent.implicitHeight
       if (settingsPanel.activeTab === "features") return featuresContent.implicitHeight
       if (settingsPanel.activeTab === "performance") return performanceContent.implicitHeight
+      if (settingsPanel.activeTab === "postprocessing") return Math.min(_postprocessingInner.implicitHeight, 360)
+      if (settingsPanel.activeTab === "matugen") return Math.min(_matugenInner.implicitHeight, 360)
       if (settingsPanel.activeTab === "keybinds") return keybindsContent.implicitHeight
       return 0
     }
@@ -1082,6 +1094,343 @@ Item {
           }
         }
       }
+    }
+
+    Flickable {
+      id: postprocessingContent
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: parent.height
+      visible: settingsPanel.activeTab === "postprocessing"
+      contentHeight: _postprocessingInner.implicitHeight
+      clip: true
+      flickableDirection: Flickable.VerticalFlick
+      boundsBehavior: Flickable.StopAtBounds
+
+      ScrollBar.vertical: ScrollBar {
+        policy: ScrollBar.AlwaysOff
+      }
+
+      function _snapshotCmds() {
+        var cmds = []
+        for (var i = 0; i < postCmdRepeater.count; i++) {
+          var item = postCmdRepeater.itemAt(i)
+          if (item) cmds.push(item.children[0].children[0].text)
+        }
+        return cmds
+      }
+
+      Column {
+        id: _postprocessingInner
+        width: parent.width
+        spacing: 8
+
+      Text {
+        text: "COMMANDS"
+        font.family: Style.fontFamily; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 1.5
+        color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1, 1, 1, 0.5)
+      }
+
+      Text {
+        width: parent.width
+        text: "Shell commands to run after every wallpaper change. Use %type% (static/video/we), %name%, and %path% as placeholders."
+        font.family: Style.fontFamily; font.pixelSize: 11
+        color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceText.r, settingsPanel.colors.surfaceText.g, settingsPanel.colors.surfaceText.b, 0.6) : Qt.rgba(1, 1, 1, 0.4)
+        wrapMode: Text.Wrap
+      }
+
+      Rectangle {
+        width: 120; height: 28; radius: 4
+        color: addMa.containsMouse
+          ? (settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.2) : Qt.rgba(1, 1, 1, 0.15))
+          : (settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15, 0.15, 0.2, 0.6))
+
+        Text {
+          anchors.centerIn: parent
+          text: "+ ADD COMMAND"
+          font.family: Style.fontFamily; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.5
+          color: settingsPanel.colors ? settingsPanel.colors.primary : Style.fallbackAccent
+        }
+
+        MouseArea {
+          id: addMa
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            var cmds = postprocessingContent._snapshotCmds()
+            cmds.push("")
+            settingsPanel._saveConfigKey("postProcessing", cmds)
+          }
+        }
+      }
+
+      Repeater {
+        id: postCmdRepeater
+        model: Config.postProcessing
+
+        Row {
+          width: _postprocessingInner.width
+          spacing: 6
+
+          Rectangle {
+            width: parent.width - removeBtn.width - parent.spacing
+            height: 26
+            radius: 4
+            color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15, 0.15, 0.2, 0.6)
+            border.width: cmdInput.activeFocus ? 1 : 0
+            border.color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.5) : Qt.rgba(1, 1, 1, 0.3)
+
+            TextInput {
+              id: cmdInput
+              anchors.fill: parent
+              anchors.leftMargin: 8
+              anchors.rightMargin: 8
+              verticalAlignment: TextInput.AlignVCenter
+              font.family: Style.fontFamilyCode
+              font.pixelSize: 11
+              color: settingsPanel.colors ? settingsPanel.colors.tertiary : "#8bceff"
+              clip: true
+              selectByMouse: true
+              text: modelData
+
+              onEditingFinished: {
+                var cmds = postprocessingContent._snapshotCmds()
+                settingsPanel._saveConfigKey("postProcessing", cmds)
+              }
+            }
+          }
+
+          Rectangle {
+            id: removeBtn
+            width: 26; height: 26; radius: 4
+            color: removeMa.containsMouse
+              ? (settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.25) : Qt.rgba(1, 0.3, 0.3, 0.25))
+              : "transparent"
+
+            Text {
+              anchors.centerIn: parent
+              text: "✕"
+              font.family: Style.fontFamily; font.pixelSize: 13; font.weight: Font.Bold
+              color: settingsPanel.colors ? settingsPanel.colors.primary : Qt.rgba(1, 0.3, 0.3, 0.8)
+            }
+
+            MouseArea {
+              id: removeMa
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                var cmds = postprocessingContent._snapshotCmds()
+                cmds.splice(index, 1)
+                settingsPanel._saveConfigKey("postProcessing", cmds)
+              }
+            }
+          }
+        }
+      }
+
+    }
+    }
+
+    Rectangle {
+      id: _postScrollTrack
+      x: postprocessingContent.x - 6
+      width: 3
+      radius: 1.5
+      opacity: 0.5
+      visible: postprocessingContent.visible
+      color: settingsPanel.colors ? settingsPanel.colors.primary : Qt.rgba(1, 1, 1, 0.6)
+      readonly property real _cH: postprocessingContent.contentHeight
+      readonly property real _vH: postprocessingContent.height
+      readonly property bool _overflow: _cH > _vH && _cH > 0
+      height: _overflow ? Math.min(_vH * 0.5, Math.max(16, _vH * _vH / _cH)) : 0
+      y: postprocessingContent.y + (_overflow
+        ? postprocessingContent.contentY / (_cH - _vH) * (_vH - height)
+        : 0)
+      Behavior on height { NumberAnimation { duration: 150 } }
+    }
+
+    Flickable {
+      id: matugenContent
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: parent.height
+      visible: settingsPanel.activeTab === "matugen"
+      contentHeight: _matugenInner.implicitHeight
+      clip: true
+      flickableDirection: Flickable.VerticalFlick
+      boundsBehavior: Flickable.StopAtBounds
+
+      ScrollBar.vertical: ScrollBar {
+        policy: ScrollBar.AlwaysOff
+      }
+
+      Column {
+        id: _matugenInner
+        width: parent.width
+        spacing: 8
+
+        Text {
+          text: "INTEGRATIONS"
+          font.family: Style.fontFamily; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 1.5
+          color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1, 1, 1, 0.5)
+        }
+
+        Text {
+          width: parent.width
+          text: "Matugen colour-theming integrations. Each entry generates themed output from a template and optionally runs a reload command."
+          font.family: Style.fontFamily; font.pixelSize: 11
+          color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceText.r, settingsPanel.colors.surfaceText.g, settingsPanel.colors.surfaceText.b, 0.6) : Qt.rgba(1, 1, 1, 0.4)
+          wrapMode: Text.Wrap
+        }
+
+        Repeater {
+          model: Config.integrations
+
+          Rectangle {
+            width: _matugenInner.width
+            height: _integRow.implicitHeight + 12
+            radius: 4
+            color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.4) : Qt.rgba(0.15, 0.15, 0.2, 0.4)
+
+            Row {
+              id: _integRow
+              anchors.left: parent.left; anchors.right: parent.right
+              anchors.margins: 6; anchors.verticalCenter: parent.verticalCenter
+              spacing: 6
+
+              Column {
+                width: (parent.width - _integRemoveBtn.width - parent.spacing * 2) * 0.2
+                spacing: 2
+                Text { text: "name"; font.family: Style.fontFamily; font.pixelSize: 9; color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1,1,1,0.4) }
+                Rectangle {
+                  width: parent.width; height: 22; radius: 3
+                  color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15,0.15,0.2,0.6)
+                  border.width: _nameIn.activeFocus ? 1 : 0
+                  border.color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.5) : Qt.rgba(1,1,1,0.3)
+                  TextInput {
+                    id: _nameIn; anchors.fill: parent; anchors.leftMargin: 4; anchors.rightMargin: 4
+                    verticalAlignment: TextInput.AlignVCenter; font.family: Style.fontFamilyCode; font.pixelSize: 10
+                    color: settingsPanel.colors ? settingsPanel.colors.surfaceText : "#ccc"; clip: true; selectByMouse: true
+                    text: modelData.name || ""
+                    onEditingFinished: { var a = settingsPanel._cloneIntegrations(); a[index].name = text; settingsPanel._saveConfigKey("integrations", a) }
+                  }
+                }
+              }
+
+              Column {
+                width: (parent.width - _integRemoveBtn.width - parent.spacing * 2) * 0.25
+                spacing: 2
+                Text { text: "template"; font.family: Style.fontFamily; font.pixelSize: 9; color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1,1,1,0.4) }
+                Rectangle {
+                  width: parent.width; height: 22; radius: 3
+                  color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15,0.15,0.2,0.6)
+                  border.width: _tplIn.activeFocus ? 1 : 0
+                  border.color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.5) : Qt.rgba(1,1,1,0.3)
+                  TextInput {
+                    id: _tplIn; anchors.fill: parent; anchors.leftMargin: 4; anchors.rightMargin: 4
+                    verticalAlignment: TextInput.AlignVCenter; font.family: Style.fontFamilyCode; font.pixelSize: 10
+                    color: settingsPanel.colors ? settingsPanel.colors.tertiary : "#8bceff"; clip: true; selectByMouse: true
+                    text: modelData.template || ""
+                    onEditingFinished: { var a = settingsPanel._cloneIntegrations(); a[index].template = text; settingsPanel._saveConfigKey("integrations", a) }
+                  }
+                }
+              }
+
+              Column {
+                width: (parent.width - _integRemoveBtn.width - parent.spacing * 2) * 0.3
+                spacing: 2
+                Text { text: "output"; font.family: Style.fontFamily; font.pixelSize: 9; color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1,1,1,0.4) }
+                Rectangle {
+                  width: parent.width; height: 22; radius: 3
+                  color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15,0.15,0.2,0.6)
+                  border.width: _outIn.activeFocus ? 1 : 0
+                  border.color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.5) : Qt.rgba(1,1,1,0.3)
+                  TextInput {
+                    id: _outIn; anchors.fill: parent; anchors.leftMargin: 4; anchors.rightMargin: 4
+                    verticalAlignment: TextInput.AlignVCenter; font.family: Style.fontFamilyCode; font.pixelSize: 10
+                    color: settingsPanel.colors ? settingsPanel.colors.tertiary : "#8bceff"; clip: true; selectByMouse: true
+                    text: modelData.output || ""
+                    onEditingFinished: { var a = settingsPanel._cloneIntegrations(); a[index].output = text; settingsPanel._saveConfigKey("integrations", a) }
+                  }
+                }
+              }
+
+              Column {
+                width: (parent.width - _integRemoveBtn.width - parent.spacing * 2) * 0.25
+                spacing: 2
+                Text { text: "reload"; font.family: Style.fontFamily; font.pixelSize: 9; color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1,1,1,0.4) }
+                Rectangle {
+                  width: parent.width; height: 22; radius: 3
+                  color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15,0.15,0.2,0.6)
+                  border.width: _reloadIn.activeFocus ? 1 : 0
+                  border.color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.5) : Qt.rgba(1,1,1,0.3)
+                  TextInput {
+                    id: _reloadIn; anchors.fill: parent; anchors.leftMargin: 4; anchors.rightMargin: 4
+                    verticalAlignment: TextInput.AlignVCenter; font.family: Style.fontFamilyCode; font.pixelSize: 10
+                    color: settingsPanel.colors ? settingsPanel.colors.tertiary : "#8bceff"; clip: true; selectByMouse: true
+                    text: modelData.reload || ""
+                    onEditingFinished: { var a = settingsPanel._cloneIntegrations(); a[index].reload = text || undefined; settingsPanel._saveConfigKey("integrations", a) }
+                  }
+                }
+              }
+
+              Rectangle {
+                id: _integRemoveBtn
+                width: 22; height: 22; radius: 3
+                anchors.verticalCenter: parent.verticalCenter
+                color: _integRemoveMa.containsMouse
+                  ? (settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.25) : Qt.rgba(1,0.3,0.3,0.25))
+                  : "transparent"
+                Text {
+                  anchors.centerIn: parent; text: "✕"
+                  font.family: Style.fontFamily; font.pixelSize: 11; font.weight: Font.Bold
+                  color: settingsPanel.colors ? settingsPanel.colors.primary : Qt.rgba(1,0.3,0.3,0.8)
+                }
+                MouseArea {
+                  id: _integRemoveMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                  onClicked: { var a = settingsPanel._cloneIntegrations(); a.splice(index, 1); settingsPanel._saveConfigKey("integrations", a) }
+                }
+              }
+            }
+          }
+        }
+
+        Rectangle {
+          width: 150; height: 28; radius: 4
+          color: _addIntegMa.containsMouse
+            ? (settingsPanel.colors ? Qt.rgba(settingsPanel.colors.primary.r, settingsPanel.colors.primary.g, settingsPanel.colors.primary.b, 0.2) : Qt.rgba(1,1,1,0.15))
+            : (settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceContainer.r, settingsPanel.colors.surfaceContainer.g, settingsPanel.colors.surfaceContainer.b, 0.6) : Qt.rgba(0.15,0.15,0.2,0.6))
+          Text {
+            anchors.centerIn: parent; text: "+ ADD INTEGRATION"
+            font.family: Style.fontFamily; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.5
+            color: settingsPanel.colors ? settingsPanel.colors.primary : Style.fallbackAccent
+          }
+          MouseArea {
+            id: _addIntegMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: { var a = settingsPanel._cloneIntegrations(); a.push({name: "", template: "", output: ""}); settingsPanel._saveConfigKey("integrations", a) }
+          }
+        }
+      }
+    }
+
+    Rectangle {
+      id: _matugenScrollTrack
+      x: matugenContent.x - 6
+      width: 3
+      radius: 1.5
+      opacity: 0.5
+      visible: matugenContent.visible
+      color: settingsPanel.colors ? settingsPanel.colors.primary : Qt.rgba(1, 1, 1, 0.6)
+      readonly property real _cH: matugenContent.contentHeight
+      readonly property real _vH: matugenContent.height
+      readonly property bool _overflow: _cH > _vH && _cH > 0
+      height: _overflow ? Math.min(_vH * 0.5, Math.max(16, _vH * _vH / _cH)) : 0
+      y: matugenContent.y + (_overflow
+        ? matugenContent.contentY / (_cH - _vH) * (_vH - height)
+        : 0)
+      Behavior on height { NumberAnimation { duration: 150 } }
     }
 
     Row {

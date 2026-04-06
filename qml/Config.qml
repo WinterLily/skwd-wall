@@ -153,4 +153,6 @@ QtObject {
     readonly property string wallhavenApiKey: Quickshell.env("WALLHAVEN_API_KEY") || (_data.wallhaven?.apiKey ?? "")
 
     readonly property bool wallpaperMute: _data.wallpaperMute !== false
+
+    readonly property var postProcessing: _data.postProcessing ?? []
 }
