@@ -39,7 +39,7 @@ QtObject {
     property bool _restoring: false
 
     signal wallpaperApplied(string type, string name, string path)
-    onWallpaperApplied: if (!_restoring || Config.postProcessOnRestore) _runPostProcessing(type, name, path)
+    onWallpaperApplied: { _runPostProcessing(type, name, path); _restoring = false }
 
     function applyStatic(path) {
         console.log("WallpaperApplyService.applyStatic:", path, "wallpaperDir:", wallpaperDir)
@@ -104,10 +104,12 @@ QtObject {
                 applyVideo(state.path)
             else if (state.type === "we" && state.we_id)
                 applyWE(state.we_id)
+            else
+                _restoring = false
         } catch(e) {
             console.log("WallpaperApplyService: restore failed:", e)
+            _restoring = false
         }
-        _restoring = false
     }
 
     function _saveState(type, path, weId) {
@@ -384,6 +386,7 @@ QtObject {
     }
 
     function _runPostProcessing(type, name, path) {
+        if (_restoring && !Config.postProcessOnRestore) return
         var cmds = Config.postProcessing
         if (!cmds || cmds.length === 0) return
         for (var i = 0; i < cmds.length; i++) {
