@@ -243,7 +243,6 @@ QtObject {
         var newW = parts[3] || "0"
         var newH = parts[4] || "0"
         var now = Math.floor(Date.now() / 1000)
-        // Record with final destination as key so future scans skip it
         DbService.exec(
             "INSERT INTO video_convert(src,dest,preset,codec,width,height,orig_size,new_size,converted_at) VALUES(" +
             DbService.sqlStr(dest) + "," + DbService.sqlStr(dest) + "," +
@@ -251,7 +250,6 @@ QtObject {
             newW + "," + newH + "," + origSize + "," + newSize + "," + now +
             ") ON CONFLICT(src) DO UPDATE SET dest=excluded.dest,preset=excluded.preset,codec=excluded.codec," +
             "width=excluded.width,height=excluded.height,orig_size=excluded.orig_size,new_size=excluded.new_size,converted_at=excluded.converted_at;")
-        // Clean up WE meta entry — video has been relocated to wallpaperDir
         if (dest !== src && Config.weDir) {
             var weId = src.replace(Config.weDir + "/", "").split("/")[0]
             if (weId) DbService.exec("DELETE FROM meta WHERE we_id=" + DbService.sqlStr(weId))

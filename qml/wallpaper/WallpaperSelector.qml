@@ -377,7 +377,7 @@ Scope {
       wallhavenBrowserOpen: wallpaperSelector.wallhavenBrowserOpen
       steamWorkshopBrowserOpen: wallpaperSelector.steamWorkshopBrowserOpen
       tagCloudOpen: wallpaperSelector.tagCloudVisible
-      onSettingsToggled: wallpaperSelector.settingsOpen = !wallpaperSelector.settingsOpen
+      onSettingsToggled: { wallpaperSelector.settingsOpen = !wallpaperSelector.settingsOpen; if (!wallpaperSelector.settingsOpen) wallpaperSelector._focusActiveList() }
       onWallhavenToggled: { wallpaperSelector.settingsOpen = false; wallpaperSelector.steamWorkshopBrowserOpen = false; wallpaperSelector.wallhavenBrowserOpen = !wallpaperSelector.wallhavenBrowserOpen }
       onSteamWorkshopToggled: { wallpaperSelector.settingsOpen = false; wallpaperSelector.wallhavenBrowserOpen = false; wallpaperSelector.steamWorkshopBrowserOpen = !wallpaperSelector.steamWorkshopBrowserOpen }
       onTagCloudToggled: {

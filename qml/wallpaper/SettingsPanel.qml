@@ -364,9 +364,9 @@ Item {
               activeOpacity: isEmpty ? 0.35 : 1.0
               tooltip: {
                 if (isEmpty) return "Click to save current"
-                if (Config.displayMode === "slices") return presetData.expandedWidth + "×" + presetData.sliceHeight + " — Right-click to overwrite"
-                if (Config.displayMode === "hex") return "r" + presetData.hexRadius + " " + presetData.hexRows + "×" + presetData.hexCols + " — Right-click to overwrite"
-                if (Config.displayMode === "wall") return presetData.gridColumns + "×" + presetData.gridRows + " " + presetData.gridThumbWidth + "×" + presetData.gridThumbHeight + " — Right-click to overwrite"
+                if (Config.displayMode === "slices") return presetData.expandedWidth + "×" + presetData.sliceHeight + " - Right-click to overwrite"
+                if (Config.displayMode === "hex") return "r" + presetData.hexRadius + " " + presetData.hexRows + "×" + presetData.hexCols + " - Right-click to overwrite"
+                if (Config.displayMode === "wall") return presetData.gridColumns + "×" + presetData.gridRows + " " + presetData.gridThumbWidth + "×" + presetData.gridThumbHeight + " - Right-click to overwrite"
                 return ""
               }
               onClicked: {
@@ -1767,7 +1767,7 @@ Item {
       Text {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: "Only images in your wallpaper directory are processed — Steam Workshop assets are left untouched."
+        text: "Only images in your wallpaper directory are processed"
         font.family: Style.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.2
         color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceText.r, settingsPanel.colors.surfaceText.g, settingsPanel.colors.surfaceText.b, 0.4) : Qt.rgba(1, 1, 1, 0.35)
         wrapMode: Text.WordWrap

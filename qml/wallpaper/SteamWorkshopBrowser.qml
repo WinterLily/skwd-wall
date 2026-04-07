@@ -314,7 +314,7 @@ Item {
             if (!browser.swService) return ""
             if (browser.swService.authPaused) {
               var n = browser.swService.authFailedCount
-              return "Steam login expired — " + n + " download" + (n !== 1 ? "s" : "") + " paused. Run: steamcmd +login " + (Config.steamUsername || "your_username") + " +quit"
+              return "Steam login expired - " + n + " download" + (n !== 1 ? "s" : "") + " paused. Run: steamcmd +login " + (Config.steamUsername || "your_username") + " +quit"
             }
             var msg = browser.swService.activeDownloadMessage || "Preparing..."
             var q = browser.swService.downloadQueueLength
