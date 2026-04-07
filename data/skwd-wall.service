@@ -6,7 +6,8 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=quickshell -p /usr/local/share/skwd-wall/daemon.qml
+Environment="SKWD_WALL_INSTALL=/usr/share/skwd-wall"
+ExecStart=quickshell -p /usr/share/skwd-wall/daemon.qml
 Restart=on-failure
 RestartSec=3
 
