@@ -172,7 +172,9 @@ Note that yay is an AUR (Arch User Repository) helper, so if you don't have that
 **Warning**! I am not a NixOS user. This is the trial and error configuration I used in my NixOS VM for testing.
 If you are a NixOS user please make a pull request if you feel there's easier ways to do this because I am sure there are.
 
-Add the flake inputs for quickshell and awww to your `flake.nix`:
+<details>
+  <summary>Install instructions by me, trainee NixOS wizard</summary>
+  Add the flake inputs for quickshell and awww to your `flake.nix`:
 
 ```nix
 {
@@ -228,6 +230,81 @@ quickshell -p daemon.qml
 # this is the part you keybind somehow which launches the UI!
 quickshell ipc -p daemon.qml call wallpaper toggle
 ```
+</details>
+
+<details>
+  <summary>Install instructions by happyzxzxz, certified NixOS wizard. I haven't tested this but spreading the knowledge for you NixOS people!</summary>
+  So, the way to improve NixOS install is to use flakes. Basically you just add flakes in your experimental features in configuration.nix:
+nix.settings.experimental-features = [ "nix-command" "flakes" ]
+and then you create flake.nix file in your repository with this content:
+  
+```
+flake.nix
+
+{
+  description = "A wallpaper manager for quickshell";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    quickshell.url = "github:quickshell-mirror/quickshell";
+    awww.url = "git+https://codeberg.org/LGFae/awww";
+  };
+
+  outputs = { self, nixpkgs, quickshell, awww, ... }:
+    let
+      foreachSystem = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ];
+    in {
+      packages = foreachSystem (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+
+          # Use the nixpkgs from Quickshell to avoid Qt mismatches
+          qsPkgs = quickshell.inputs.nixpkgs.legacyPackages.${system};
+          
+          quickshellWithModules = quickshell.packages.${system}.default.withModules (with qsPkgs.qt6; [
+            qtmultimedia
+            qtsvg
+            qt5compat
+            qtwayland
+          ]);
+
+          runtimeDeps = with pkgs; [
+            matugen 
+            ffmpeg 
+            imagemagick 
+            inotify-tools 
+            sqlite 
+            curl
+            awww.packages.${system}.awww
+          ];
+        in {
+          default = pkgs.stdenv.mkDerivation {
+            pname = "skwd-wall";
+            version = "unstable";
+            src = ./.;
+
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+
+            installPhase = ''
+              mkdir -p $out/share/skwd-wall
+              cp -r . $out/share/skwd-wall
+
+              makeWrapper ${quickshellWithModules}/bin/quickshell $out/bin/skwd-wall-daemon \
+                --prefix PATH : ${pkgs.lib.makeBinPath runtimeDeps} \
+                --add-flags "-p $out/share/skwd-wall/daemon.qml"
+
+              makeWrapper ${quickshellWithModules}/bin/quickshell $out/bin/skwd-wall-toggle \
+                --add-flags "ipc -p $out/share/skwd-wall/daemon.qml call wallpaper toggle"
+            '';
+          };
+        });
+    };
+}
+```
+
+Next you can run nix profile install . in the repo folder to install it on your system.
+Once installed you can launch daemon with skwd-wall-daemon and toggle with skwd-wall-toggle
+</details>
 
 Optional: add `ollama`, `jq`, `mpvpaper` to your system packages as needed.
 
