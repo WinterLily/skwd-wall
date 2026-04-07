@@ -238,7 +238,7 @@ quickshell ipc -p daemon.qml call wallpaper toggle
 </details>
 
 <details>
-  <summary>Install instructions using flakes by happyzxzxz</summary>
+  <summary>Currently reported as having issues - proceed at your own risk! Install instructions using flakes by happyzxzxz</summary>
 
   1. Ensure Flakes are enabled in your `configuration.nix`:
   `nix.settings.experimental-features = [ "nix-command" "flakes" ]`
