@@ -238,78 +238,36 @@ quickshell ipc -p daemon.qml call wallpaper toggle
 </details>
 
 <details>
-  <summary>Install instructions by happyzxzxz, certified NixOS wizard. I haven't tested this but I am very thankful for the help!</summary>
-  So, the way to improve NixOS install is to use flakes. Basically you just add flakes in your experimental features in configuration.nix:
-nix.settings.experimental-features = [ "nix-command" "flakes" ]
-and then you create flake.nix file in your repository with this content:
-  
+  <summary>Install instructions using flakes by happyzxzxz</summary>
+
+  1. Ensure Flakes are enabled in your `configuration.nix`:
+  `nix.settings.experimental-features = [ "nix-command" "flakes" ]`
+  2. Also add this in `configuration.nix` (Sorry, I couldn't figure out how to wrap it all in the flake)
+
 ```
-flake.nix
-
-{
-  description = "A wallpaper manager for quickshell";
-
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    quickshell.url = "github:quickshell-mirror/quickshell";
-    awww.url = "git+https://codeberg.org/LGFae/awww";
-  };
-
-  outputs = { self, nixpkgs, quickshell, awww, ... }:
-    let
-      foreachSystem = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ];
-    in {
-      packages = foreachSystem (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-
-          # Use the nixpkgs from Quickshell to avoid Qt mismatches
-          qsPkgs = quickshell.inputs.nixpkgs.legacyPackages.${system};
-          
-          quickshellWithModules = quickshell.packages.${system}.default.withModules (with qsPkgs.qt6; [
-            qtmultimedia
-            qtsvg
-            qt5compat
-            qtwayland
-          ]);
-
-          runtimeDeps = with pkgs; [
-            matugen 
-            ffmpeg 
-            imagemagick 
-            inotify-tools 
-            sqlite 
-            curl
-            file
-            awww.packages.${system}.awww
-          ];
-        in {
-          default = pkgs.stdenv.mkDerivation {
-            pname = "skwd-wall";
-            version = "unstable";
-            src = ./.;
-
-            nativeBuildInputs = [ pkgs.makeWrapper ];
-
-            installPhase = ''
-              mkdir -p $out/share/skwd-wall
-              cp -r . $out/share/skwd-wall
-
-              makeWrapper ${quickshellWithModules}/bin/quickshell $out/bin/skwd-wall-daemon \
-                --prefix PATH : ${pkgs.lib.makeBinPath runtimeDeps} \
-                --add-flags "-p $out/share/skwd-wall/daemon.qml"
-
-              makeWrapper ${quickshellWithModules}/bin/quickshell $out/bin/skwd-wall-toggle \
-                --add-flags "ipc -p $out/share/skwd-wall/daemon.qml call wallpaper toggle"
-            '';
-          };
-        });
+# Quickshell with QtMultimedia seemingly we need to use their pinned nixpkgs
+# to avoid Qt version mismatches between your system nixpkgs and the flake's
+environment.systemPackages = with pkgs; [
+  (let
+    qsPkgs = inputs.quickshell.inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+  in inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default.withModules [
+    qsPkgs.qt6.qtmultimedia
+  ])
+];
+```
+  3. And this in your `/etc/nixos/flake.nix`:
+  ```
+  {
+    inputs = {
+      quickshell.url = "github:quickshell-mirror/quickshell";
     };
-}
+  }
 ```
+  4. Rebuild your system: `nixos-rebuild switch`
 
-Next you can run nix profile install . in the repo folder to install it on your system.
-Once installed you can launch daemon with skwd-wall-daemon and toggle with skwd-wall-toggle
+Next you can run `nix profile install .` in the repo folder to install it on your system.
+Once installed you can launch daemon with `skwd-wall-daemon` and toggle with `skwd-wall-toggle`
+
 </details>
 
 Optional: add `ollama`, `jq`, `mpvpaper` to your system packages as needed.
