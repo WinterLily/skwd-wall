@@ -151,27 +151,22 @@ yay -S plasma6-wallpapers-smart-video-wallpaper-reborn
 sudo dnf install plasma-smart-video-wallpaper-reborn
 ```
 
-### Arch Linux
-
+## Arch Linux
 ```
-sudo pacman -S curl sqlite ffmpeg imagemagick inotify-tools ttf-nerd-fonts-symbols qt6-multimedia ttf-roboto ttf-roboto-mono
-yay -S quickshell-git awww-bin matugen-bin ttf-material-design-icons-desktop-git
-
-Optional: `sudo pacman -S jq ollama &&`yay -S mpvpaper steamcmd linux-wallpaperengine-git`
-
-git clone https://github.com/liixini/skwd-wall && cd skwd-wall
-
-# the -p part is for PATH, extend to match the path where you find daemon.qml
-# set this up with your exec once of choice, such as a .desktop file, in your compositor etc.
-quickshell -p daemon.qml
-
-# this is the part you keybind somehow which launches the UI!
-quickshell ipc -p daemon.qml call wallpaper toggle
+yay -S skwd-wall
+systemctl --user enable --now skwd-wall.service
 ```
+Skwd-wall is now in your launcher ready to be used.
+If you want to be fancy, add a keybind with the command
+`quickshell ipc -p /usr/share/skwd-wall/daemon.qml call wallpaper toggle`
+this also opens Skwd-wall.
+
+Install the optional dependencies video/wallpaper engine or automated tagging interests you:
+`sudo pacman -S ollama &&`yay -S mpvpaper steamcmd linux-wallpaperengine-git`
 
 Note that yay is an AUR (Arch User Repository) helper, so if you don't have that you will need to install it or alternatively another helper you prefer.
 
-### NixOS
+## NixOS
 
 **Warning**! I am not a NixOS user. This is the trial and error configuration I used in my NixOS VM for testing.
 If you are a NixOS user please make a pull request if you feel there's easier ways to do this because I am sure there are.
