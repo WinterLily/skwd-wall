@@ -1326,13 +1326,13 @@ Item {
 
         Text {
           text: "EXTERNAL MATUGEN CONFIG"
-          font.family: Style.fontFamily; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 1
+          font.family: Style.fontFamily; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 1
           color: settingsPanel.colors ? settingsPanel.colors.tertiary : Qt.rgba(1, 1, 1, 0.5)
         }
 
         Text {
           width: parent.width
-          text: "Path to an external matugen config file such as the one from your existing setup."
+          text: "Path to an external matugen config file such as the one from your existing setup. This runs alongside Skwd-wall's internal Matugen configuration."
           font.family: Style.fontFamily; font.pixelSize: 10
           color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceText.r, settingsPanel.colors.surfaceText.g, settingsPanel.colors.surfaceText.b, 0.5) : Qt.rgba(1, 1, 1, 0.35)
           wrapMode: Text.Wrap
@@ -1640,7 +1640,7 @@ Item {
       Text {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: "This will erase every Ollama-generated tag and re-analyse all wallpapers with the current model. This cannot be undone."
+        text: "This will erase every tag and re-analyse all wallpapers with the current model. This cannot be undone."
         font.family: Style.fontFamily; font.pixelSize: 11; font.letterSpacing: 0.2
         color: settingsPanel.colors ? Qt.rgba(settingsPanel.colors.surfaceText.r, settingsPanel.colors.surfaceText.g, settingsPanel.colors.surfaceText.b, 0.6) : Qt.rgba(1, 1, 1, 0.5)
         wrapMode: Text.WordWrap

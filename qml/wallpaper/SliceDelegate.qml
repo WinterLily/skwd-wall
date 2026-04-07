@@ -29,6 +29,9 @@ Item {
             if (!_backMeta)
                 FileMetadataService.probeIfNeeded(key, model.path, model.type === "video" ? "video" : "image")
         }
+        if (!flipped) {
+            addTagField.text = ""; addTagField._sessionTags = []
+        }
     }
     Connections {
         target: FileMetadataService
@@ -578,15 +581,35 @@ Item {
                         font.family: Style.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.3
                         color: delegateItem.colors ? delegateItem.colors.surfaceText : "#fff"
                         clip: true
-                        Keys.onReturnPressed: {
-                            var tag = text.trim().toLowerCase()
-                            if (tag.length > 0) {
-                                var tags = delegateItem.service.getWallpaperTags(backTagsSection.wpName, backTagsSection.wpWeId).slice()
-                                if (tags.indexOf(tag) === -1) { tags.push(tag); delegateItem.service.setWallpaperTags(backTagsSection.wpName, backTagsSection.wpWeId, tags) }
-                                text = ""
+                        property var _sessionTags: []
+                        property bool _syncing: false
+                        onTextChanged: {
+                            if (_syncing) return
+                            var raw = text.toLowerCase()
+                            var words = raw.split(/\s+/).filter(function(w) { return w.length > 0 })
+                            var wpTags = delegateItem.service.getWallpaperTags(backTagsSection.wpName, backTagsSection.wpWeId).slice()
+                            var changed = false
+                            for (var i = 0; i < words.length; i++) {
+                                if (_sessionTags.indexOf(words[i]) === -1) _sessionTags.push(words[i])
+                                if (wpTags.indexOf(words[i]) === -1) { wpTags.push(words[i]); changed = true }
                             }
+                            var toRemove = []
+                            for (var k = 0; k < _sessionTags.length; k++) {
+                                if (words.indexOf(_sessionTags[k]) === -1) toRemove.push(_sessionTags[k])
+                            }
+                            for (var r = 0; r < toRemove.length; r++) {
+                                var si = _sessionTags.indexOf(toRemove[r])
+                                if (si !== -1) _sessionTags.splice(si, 1)
+                                var wi = wpTags.indexOf(toRemove[r])
+                                if (wi !== -1) { wpTags.splice(wi, 1); changed = true }
+                            }
+                            if (changed) delegateItem.service.setWallpaperTags(backTagsSection.wpName, backTagsSection.wpWeId, wpTags)
                         }
-                        Keys.onEscapePressed: { text = ""; if (delegateItem._listView) delegateItem._listView.forceActiveFocus() }
+                        Keys.onReturnPressed: function(event) { event.accepted = true }
+                        Keys.onEscapePressed: {
+                            text = ""; _sessionTags = []
+                            if (delegateItem._listView) delegateItem._listView.forceActiveFocus()
+                        }
 
                         Text {
                             anchors.fill: parent; verticalAlignment: Text.AlignVCenter

@@ -297,6 +297,7 @@ Scope {
     }
     MouseArea {
       anchors.fill: parent
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
       onClicked: {
         if (wallpaperSelector.anyBrowserOpen) {
           wallpaperSelector.wallhavenBrowserOpen = false
@@ -412,7 +413,7 @@ Scope {
       z: 999
       colors: wallpaperSelector.colors
       settingsOpen: wallpaperSelector.settingsOpen
-      onCloseRequested: wallpaperSelector.settingsOpen = false
+      onCloseRequested: { wallpaperSelector.settingsOpen = false; wallpaperSelector._focusActiveList() }
     }
     TagCloud {
       id: tagCloud
@@ -1307,6 +1308,7 @@ Scope {
       }
 
       function show(data, gx, gy, sourceItem) {
+        gridTagField.text = ""; gridTagField._sessionTags = []
         overlayData = data
         overlayItemKey = (data.weId || "") !== "" ? data.weId : data.name
         _sourceItem = sourceItem || null
@@ -1595,16 +1597,33 @@ Scope {
                   font.family: Style.fontFamily; font.pixelSize: 11; font.letterSpacing: 0.3
                   color: wallpaperSelector.colors ? wallpaperSelector.colors.surfaceText : "#fff"
                   clip: true
-                  Keys.onReturnPressed: {
+                  property var _sessionTags: []
+                  property bool _syncing: false
+                  onTextChanged: {
+                    if (_syncing) return
                     if (!gridBackOverlay.overlayData) return
-                    var tag = text.trim().toLowerCase()
-                    if (tag.length > 0) {
-                      var tags = wallpaperSelector.selectorService.getWallpaperTags(gridTagsSection.wpName, gridTagsSection.wpWeId).slice()
-                      if (tags.indexOf(tag) === -1) { tags.push(tag); wallpaperSelector.selectorService.setWallpaperTags(gridTagsSection.wpName, gridTagsSection.wpWeId, tags) }
-                      text = ""
+                    var raw = text.toLowerCase()
+                    var words = raw.split(/\s+/).filter(function(w) { return w.length > 0 })
+                    var wpTags = wallpaperSelector.selectorService.getWallpaperTags(gridTagsSection.wpName, gridTagsSection.wpWeId).slice()
+                    var changed = false
+                    for (var i = 0; i < words.length; i++) {
+                      if (_sessionTags.indexOf(words[i]) === -1) _sessionTags.push(words[i])
+                      if (wpTags.indexOf(words[i]) === -1) { wpTags.push(words[i]); changed = true }
                     }
+                    var toRemove = []
+                    for (var k = 0; k < _sessionTags.length; k++) {
+                      if (words.indexOf(_sessionTags[k]) === -1) toRemove.push(_sessionTags[k])
+                    }
+                    for (var r = 0; r < toRemove.length; r++) {
+                      var si = _sessionTags.indexOf(toRemove[r])
+                      if (si !== -1) _sessionTags.splice(si, 1)
+                      var wi = wpTags.indexOf(toRemove[r])
+                      if (wi !== -1) { wpTags.splice(wi, 1); changed = true }
+                    }
+                    if (changed) wallpaperSelector.selectorService.setWallpaperTags(gridTagsSection.wpName, gridTagsSection.wpWeId, wpTags)
                   }
-                  Keys.onEscapePressed: { text = ""; gridBackOverlay.hide() }
+                  Keys.onReturnPressed: function(event) { event.accepted = true }
+                  Keys.onEscapePressed: { text = ""; _sessionTags = []; gridBackOverlay.hide() }
                   Text {
                     anchors.fill: parent; verticalAlignment: Text.AlignVCenter
                     text: "+ ADD TAG"; font.family: Style.fontFamily; font.pixelSize: 11; font.letterSpacing: 1
@@ -1759,6 +1778,7 @@ Scope {
       readonly property real _sin30: 0.5
 
       function show(data, gx, gy, sourceItem) {
+        overlayTagField.text = ""; overlayTagField._sessionTags = []
         overlayData = data
         overlayItemKey = (data.weId || "") !== "" ? data.weId : data.name
         _sourceItem = sourceItem || null
@@ -2085,16 +2105,33 @@ Scope {
                   font.family: Style.fontFamily; font.pixelSize: 11; font.letterSpacing: 0.3
                   color: wallpaperSelector.colors ? wallpaperSelector.colors.surfaceText : "#fff"
                   clip: true
-                  Keys.onReturnPressed: {
+                  property var _sessionTags: []
+                  property bool _syncing: false
+                  onTextChanged: {
+                    if (_syncing) return
                     if (!hexBackOverlay.overlayData) return
-                    var tag = text.trim().toLowerCase()
-                    if (tag.length > 0) {
-                      var tags = wallpaperSelector.selectorService.getWallpaperTags(overlayTagsSection.wpName, overlayTagsSection.wpWeId).slice()
-                      if (tags.indexOf(tag) === -1) { tags.push(tag); wallpaperSelector.selectorService.setWallpaperTags(overlayTagsSection.wpName, overlayTagsSection.wpWeId, tags) }
-                      text = ""
+                    var raw = text.toLowerCase()
+                    var words = raw.split(/\s+/).filter(function(w) { return w.length > 0 })
+                    var wpTags = wallpaperSelector.selectorService.getWallpaperTags(overlayTagsSection.wpName, overlayTagsSection.wpWeId).slice()
+                    var changed = false
+                    for (var i = 0; i < words.length; i++) {
+                      if (_sessionTags.indexOf(words[i]) === -1) _sessionTags.push(words[i])
+                      if (wpTags.indexOf(words[i]) === -1) { wpTags.push(words[i]); changed = true }
                     }
+                    var toRemove = []
+                    for (var k = 0; k < _sessionTags.length; k++) {
+                      if (words.indexOf(_sessionTags[k]) === -1) toRemove.push(_sessionTags[k])
+                    }
+                    for (var r = 0; r < toRemove.length; r++) {
+                      var si = _sessionTags.indexOf(toRemove[r])
+                      if (si !== -1) _sessionTags.splice(si, 1)
+                      var wi = wpTags.indexOf(toRemove[r])
+                      if (wi !== -1) { wpTags.splice(wi, 1); changed = true }
+                    }
+                    if (changed) wallpaperSelector.selectorService.setWallpaperTags(overlayTagsSection.wpName, overlayTagsSection.wpWeId, wpTags)
                   }
-                  Keys.onEscapePressed: { text = ""; hexBackOverlay.hide() }
+                  Keys.onReturnPressed: function(event) { event.accepted = true }
+                  Keys.onEscapePressed: { text = ""; _sessionTags = []; hexBackOverlay.hide() }
                   Text {
                     anchors.fill: parent; verticalAlignment: Text.AlignVCenter
                     text: "+ ADD TAG"; font.family: Style.fontFamily; font.pixelSize: 11; font.letterSpacing: 1
