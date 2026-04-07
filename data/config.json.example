@@ -54,8 +54,8 @@
         {
             "name": "niri",
             "template": "niri-colors.kdl",
-            "output": "niri-primary-color",
-            "reload": "~/.config/skwd-wall/scripts/reload-niri.sh"
+            "output": "~/.config/niri/skwd-colors.kdl",
+            "reload": "niri msg action load-config-file"
         },
         {
             "name": "kde",

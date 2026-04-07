@@ -1,1 +1,17 @@
-{{colors.primary.default.hex_stripped}}
+layout {
+    focus-ring {
+        active-color "#{{colors.primary.default.hex_stripped}}"
+        inactive-color "#{{colors.surface_variant.default.hex_stripped}}"
+    }
+    border {
+        active-color "#{{colors.primary.default.hex_stripped}}"
+        inactive-color "#{{colors.surface_variant.default.hex_stripped}}"
+    }
+    tab-indicator {
+        active-color "#{{colors.primary.default.hex_stripped}}"
+        inactive-color "#{{colors.primary_container.default.hex_stripped}}"
+    }
+    insert-hint {
+        color "#{{colors.primary.default.hex_stripped}}80"
+    }
+}
